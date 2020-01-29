@@ -2,6 +2,7 @@
 
 # Imports
 import csv
+import os
 
 # Classes
 class Dataset:
@@ -22,6 +23,11 @@ class label_instance:
     def __init__(self, label):
         self.label = label
 
+# Constants
+
+# There are 963 features present in the dataset, for simplicity we will only be dealing with 10
+ALLOWED_FEATURES = 10
+
 # Functions
 def process_features_file(file_path):
     '''
@@ -38,9 +44,6 @@ def process_features_file(file_path):
 
         features = instance_string.split(';')
         feature_objets = list()
-
-        # There are 963 features present in the dataset, for simplicity we will only be dealing with 10
-        ALLOWED_FEATURES = 10
 
         feature_count = 0
         for feature in features:
@@ -83,37 +86,40 @@ def process_labels_file(file_path):
 # Convert the dataset in csv format
 dataset_paths = [Dataset('test_data', 'Dataset/PEMS_test', 'Dataset/PEMS_testlabels'), Dataset('train_data', 'Dataset/PEMS_train', 'Dataset/PEMS_trainlabels')]
 
+complete_features_list = list()
+complete_labels_list = list()
+
 for dataset in dataset_paths:
     features_list = process_features_file(dataset.features_path)
     labels_list = process_labels_file(dataset.labels_path)
 
-    # Write dataset
-    csv_file_name = dataset.name + ".csv"
-    with open(csv_file_name, 'w', newline='') as file:
+    complete_features_list += features_list
+    complete_labels_list += labels_list
+
+# Write datasets for each feature
+current_path = os.getcwd()
+directory_name = "datasets"
+
+# Create a directory named <directory_name>
+try:
+    os.makedirs(os.path.join(current_path, directory_name))
+except:
+    pass
+
+for feature_number in range(ALLOWED_FEATURES):
+    csv_file_name = str(feature_number+1) + ".csv"
+    csv_file_path = directory_name + "/" + csv_file_name
+
+    with open(csv_file_path, 'w', newline='') as file:
         csv_writer = csv.writer(file)
 
-        for i in range(len(features_list)):
+        for i in range(len(complete_features_list)):
             row = list()
-            for feature in features_list[i].features:
-                x = ","
-                data_points_string = x.join(feature.data_points)
-                row.append(data_points_string)
-            row.append(labels_list[i].label)
+
+            feature = complete_features_list[i].features[feature_number]
+            data_points = feature.data_points
+
+            row += data_points
+            row.append(complete_labels_list[i].label)
 
             csv_writer.writerow(row)
-
-# Combine both testing and training dataset
-test_file_path = dataset_paths[0].name + ".csv"
-train_file_path = dataset_paths[1].name + ".csv"
-dataset_path = "dataset.csv"
-
-test_file = open(test_file_path, "r")
-test_file_data = test_file.read()
-
-train_file = open(train_file_path, "r")
-train_file_data = train_file.read()
-
-dataset_file = open(dataset_path, "w+")
-dataset_file.write(test_file_data)
-dataset_file.write(train_file_data)
-
