@@ -53,14 +53,11 @@ def process_features_file(file_path):
 
             if feature_count == ALLOWED_FEATURES:
                 break
-    
+
         instance_object = feature_instance(feature_objets)
         instance_objects.append(instance_object)
 
     return instance_objects
-
-
-
 
 def process_labels_file(file_path):
     '''
@@ -81,8 +78,6 @@ def process_labels_file(file_path):
 
     return label_objects
 
-
-
 # Convert the dataset in csv format
 dataset_paths = [Dataset('test_data', 'Dataset/PEMS_test', 'Dataset/PEMS_testlabels'), Dataset('train_data', 'Dataset/PEMS_train', 'Dataset/PEMS_trainlabels')]
 
@@ -101,10 +96,7 @@ current_path = os.getcwd()
 directory_name = "datasets"
 
 # Create a directory named <directory_name>
-try:
-    os.makedirs(os.path.join(current_path, directory_name))
-except:
-    pass
+os.makedirs(os.path.join(current_path, directory_name))
 
 for feature_number in range(ALLOWED_FEATURES):
     csv_file_name = str(feature_number+1) + ".csv"
@@ -113,10 +105,10 @@ for feature_number in range(ALLOWED_FEATURES):
     with open(csv_file_path, 'w', newline='') as file:
         csv_writer = csv.writer(file)
 
-        for i in range(len(complete_features_list)):
+        for i, feature_object in enumerate(complete_features_list):
             row = list()
 
-            feature = complete_features_list[i].features[feature_number]
+            feature = feature_object.features[feature_number]
             data_points = feature.data_points
 
             row += data_points
