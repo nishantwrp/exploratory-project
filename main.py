@@ -1,7 +1,7 @@
 # Written by Nishant Mittal aka nishantwrp
 
 # Imports
-from load_dataset import *
+from load_dataset import load_all_datasets
 from gaussian_process_classifier import calculate_mrl
 from time import time
 
@@ -13,13 +13,13 @@ INITIAL_F = 0.7
 all_datasets = load_all_datasets()
 all_mrls = list()
 
-for i in range(len(all_datasets)):
+for i, dataset in enumerate(all_datasets):
     print("MRL Calculation for feature %s started" % (str(i+1)))
 
     t = time()
 
-    X, Y = all_datasets[i]
-    
+    X, Y = dataset
+
     initial_f = int(INITIAL_F*X.shape[1])
     if len(all_mrls) > 0:
         initial_f = max(all_mrls)
