@@ -19,7 +19,7 @@ all_mrls = list()
 if os.path.exists('mrls.json'):
     with open('mrls.json', 'r') as file:
         all_mrls_dict = json.load(file)
-        
+
         # Convert all_mrls to array
         for key, mrl_data_dict in all_mrls_dict.items():
             mrl_array = list()
