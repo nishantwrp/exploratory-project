@@ -8,9 +8,9 @@ import json
 import os
 
 # Constants
-ALPHA = 0.8
+ALPHA = 0.9
 INITIAL_F = 0.4
-TRAINING_FRACTION = 0.7
+TRAINING_FRACTION = 0.8
 
 # Main Code Begins Here
 all_datasets = load_all_datasets()
