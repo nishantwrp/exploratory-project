@@ -55,3 +55,11 @@ def calculate_mrl(X, Y, alpha, initial_f):
         current_f += 1
 
     return mrl
+
+def get_gpc(X, Y):
+    '''
+    Train and return the gaussian process classifier for the given data
+    '''
+    kernel = 1.0 * RBF(1.0)
+    gpc = GaussianProcessClassifier(kernel=kernel, random_state=0).fit(X, Y)
+    return gpc

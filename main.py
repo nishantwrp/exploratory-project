@@ -2,7 +2,8 @@
 
 # Imports
 from load_dataset import load_all_datasets
-from gaussian_process_classifier import calculate_mrl
+from progress.bar import ChargingBar
+from gaussian_process_classifier import calculate_mrl, get_gpc
 from time import time
 import json
 import os
@@ -10,6 +11,7 @@ import os
 # Constants
 ALPHA = 0.9
 INITIAL_F = 0.4
+LABELS = 7
 TRAINING_FRACTION = 0.8
 
 # Main Code Begins Here
@@ -64,3 +66,53 @@ else:
     with open('mrls.json', 'w+') as file:
         json.dump(all_mrls_dict, file)
         print("Saved the calculated MRLs for future use")
+
+
+trained_classifiers = list()
+
+with ChargingBar('Training guassian process classifiers', max=len(all_datasets)) as bar:
+    t = time()
+
+    for i, dataset in enumerate(all_datasets):
+        # Training dataset
+        X, Y = dataset
+        rows_for_training = int(TRAINING_FRACTION*X.shape[0])
+        X = X[:rows_for_training]
+        Y = Y[:rows_for_training]
+
+        mrl = int(min([min(all_mrls[i]) for i in range(len(all_datasets))]))
+        X = X[:, :mrl]
+
+        trained_classifiers.append(get_gpc(X, Y))
+        bar.next()
+
+    time_elapsed = str(round(time() - t, 3)) + "s"
+    print("\nTime elapsed: %s" % (time_elapsed))
+
+
+print("Calculating transition matrix")
+predicted_probs = list()
+
+for i, dataset in enumerate(all_datasets):
+    X, Y = dataset
+    rows_for_training = int(TRAINING_FRACTION*X.shape[0])
+    X = X[:rows_for_training]
+    Y = Y[:rows_for_training]
+
+    mrl = int(min([min(all_mrls[i]) for i in range(len(all_datasets))]))
+    X = X[:, :mrl]
+
+    predicted_probs.append(trained_classifiers[i].predict(X))
+
+transition_matrix = [[0 for _ in range(LABELS)] for _ in range(LABELS)]
+
+for i in range(1, len(predicted_probs)):
+    for j in range(len(predicted_probs[i])):
+        transition_matrix[predicted_probs[i-1][j] - 1][predicted_probs[i][j] - 1] += 1
+
+for i, row in enumerate(transition_matrix):
+    total = sum(row)
+    for j in range(len(row)):
+        transition_matrix[i][j] /= total
+
+print("Calculated transition matrix")
