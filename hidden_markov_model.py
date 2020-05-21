@@ -3,5 +3,5 @@
 
 # Main Code Begins Here
 class HMM():
-    def __init__(self, trans_prob, emmission_prob):
+    def __init__(self, trans_prob, emmission_prob, labels):
         pass

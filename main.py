@@ -2,9 +2,10 @@
 
 # Imports
 from load_dataset import load_all_datasets
-from progress.bar import ChargingBar
+from progress.bar import IncrementalBar
 from gaussian_process_classifier import calculate_mrl, get_gpc
 from time import time
+import pickle
 import json
 import os
 
@@ -70,24 +71,40 @@ else:
 
 trained_classifiers = list()
 
-with ChargingBar('Training guassian process classifiers', max=len(all_datasets)) as bar:
-    t = time()
+if os.path.exists('trained_models'):
+    with IncrementalBar('Loading gaussian process classifiers', max=len(all_datasets)) as bar:
+        t = time()
 
-    for i, dataset in enumerate(all_datasets):
-        # Training dataset
-        X, Y = dataset
-        rows_for_training = int(TRAINING_FRACTION*X.shape[0])
-        X = X[:rows_for_training]
-        Y = Y[:rows_for_training]
+        for i in range(len(all_datasets)):
+            with open('trained_models/model_' + str(i+1), 'rb') as f:
+                trained_classifiers.append(pickle.load(f))
+            bar.next()
 
-        mrl = int(min([min(all_mrls[i]) for i in range(len(all_datasets))]))
-        X = X[:, :mrl]
+        time_elapsed = str(round(time() - t, 3)) + "s"
+        print("\nTime elapsed: %s" % (time_elapsed))
 
-        trained_classifiers.append(get_gpc(X, Y))
-        bar.next()
+else:
+    os.makedirs('trained_models')
+    with IncrementalBar('Training guassian process classifiers', max=len(all_datasets)) as bar:
+        t = time()
 
-    time_elapsed = str(round(time() - t, 3)) + "s"
-    print("\nTime elapsed: %s" % (time_elapsed))
+        for i, dataset in enumerate(all_datasets):
+            # Training dataset
+            X, Y = dataset
+            rows_for_training = int(TRAINING_FRACTION*X.shape[0])
+            X = X[:rows_for_training]
+            Y = Y[:rows_for_training]
+
+            mrl = int(min([min(all_mrls[i]) for i in range(len(all_datasets))]))
+            X = X[:, :mrl]
+
+            trained_classifiers.append(get_gpc(X, Y))
+            with open('trained_models/model_' + str(i+1), 'wb') as f:
+                pickle.dump(trained_classifiers[-1], f)
+            bar.next()
+
+        time_elapsed = str(round(time() - t, 3)) + "s"
+        print("\nTime elapsed: %s" % (time_elapsed))
 
 
 print("Calculating transition matrix")
