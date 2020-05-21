@@ -5,12 +5,6 @@ LABELS = 7
 
 # Main Code Begins Here
 def prepare_observation_matrix(predicted_probs):
-    # label_probs = [0 for _ in range(LABELS)]
-
-    # for component_probs in predicted_probs:
-    #     for i, prob in enumerate(component_probs):
-    #         label_probs[i] += prob
-
     matrix = [[0 for _ in range(len(predicted_probs))] for _ in range(LABELS)]
 
     for i, component_probs in enumerate(predicted_probs):
