@@ -4,7 +4,9 @@
 from load_dataset import load_all_datasets
 from progress.bar import IncrementalBar
 from gaussian_process_classifier import calculate_mrl, get_gpc
+from hidden_markov_model import prepare_observation_matrix, HMM
 from time import time
+from tabulate import tabulate
 import pickle
 import json
 import os
@@ -30,7 +32,7 @@ if os.path.exists('mrls.json'):
                 mrl_array.append(mrl_val)
             all_mrls.append(mrl_array)
 
-        print("Precalculated MRL data loaded")
+        print("Precalculated MRL data loaded\n")
 else:
     for i, dataset in enumerate(all_datasets):
         print("MRL Calculation for feature %s started" % (str(i+1)))
@@ -71,6 +73,7 @@ else:
 
 trained_classifiers = list()
 
+# Delete the models if mrls are changed
 if os.path.exists('trained_models'):
     with IncrementalBar('Loading gaussian process classifiers', max=len(all_datasets)) as bar:
         t = time()
@@ -107,29 +110,99 @@ else:
         print("\nTime elapsed: %s" % (time_elapsed))
 
 
-print("Calculating transition matrix")
-predicted_probs = list()
-
-for i, dataset in enumerate(all_datasets):
-    X, Y = dataset
-    rows_for_training = int(TRAINING_FRACTION*X.shape[0])
-    X = X[:rows_for_training]
-    Y = Y[:rows_for_training]
-
-    mrl = int(min([min(all_mrls[i]) for i in range(len(all_datasets))]))
-    X = X[:, :mrl]
-
-    predicted_probs.append(trained_classifiers[i].predict(X))
-
 transition_matrix = [[0 for _ in range(LABELS)] for _ in range(LABELS)]
 
-for i in range(1, len(predicted_probs)):
-    for j in range(len(predicted_probs[i])):
-        transition_matrix[predicted_probs[i-1][j] - 1][predicted_probs[i][j] - 1] += 1
+with IncrementalBar('Calculating transition matrix', max=1) as bar:
+    t = time()
+    predicted_probs = list()
 
-for i, row in enumerate(transition_matrix):
-    total = sum(row)
-    for j in range(len(row)):
-        transition_matrix[i][j] /= total
+    for i, dataset in enumerate(all_datasets):
+        X, Y = dataset
+        rows_for_training = int(TRAINING_FRACTION*X.shape[0])
+        X = X[:rows_for_training]
+        Y = Y[:rows_for_training]
 
-print("Calculated transition matrix")
+        mrl = int(min([min(all_mrls[i]) for i in range(len(all_datasets))]))
+        X = X[:, :mrl]
+
+        predicted_probs.append(trained_classifiers[i].predict(X))
+
+    for i in range(1, len(predicted_probs)):
+        for j in range(len(predicted_probs[i])):
+            transition_matrix[predicted_probs[i-1][j] - 1][predicted_probs[i][j] - 1] += 1
+
+    for i, row in enumerate(transition_matrix):
+        total = sum(row)
+        for j in range(len(row)):
+            transition_matrix[i][j] /= total
+
+    bar.next()
+    time_elapsed = str(round(time() - t, 3)) + "s"
+    print("\nTime elapsed: %s" % (time_elapsed))
+
+
+TRAINING_ROWS = int(len(all_datasets[0][0])*TRAINING_FRACTION)
+TESTING_ROWS = len(all_datasets[0][0]) - TRAINING_ROWS
+testing_data = [[None for _ in range(len(all_datasets))] for _ in range(TESTING_ROWS)]
+testing_labels = list()
+
+with IncrementalBar('Preparing the test dataset', max=len(all_datasets)) as bar:
+    t = time()
+
+    for i, dataset in enumerate(all_datasets):
+        X, Y = dataset
+        X = X[TRAINING_ROWS:]
+        Y = Y[TRAINING_ROWS:]
+
+        mrl = int(min([min(all_mrls[i]) for i in range(len(all_datasets))]))
+        X = X[:, :mrl]
+
+        for j, row in enumerate(X):
+            testing_data[j][i] = row
+
+        testing_labels = Y
+        bar.next()
+
+    time_elapsed = str(round(time() - t, 3)) + "s"
+    print("\nTime elapsed: %s" % (time_elapsed))
+
+
+predicted_labels = list()
+
+with IncrementalBar('Predicting the labels using viterbi algorithm', max=TESTING_ROWS) as bar:
+    t = time()
+
+    for testing_row in testing_data:
+        predicted_probs = list()
+        for i, testing_component in enumerate(testing_row):
+            predicted_probs.append(trained_classifiers[i].predict_proba([testing_component])[0])
+        observation_matrix = prepare_observation_matrix(predicted_probs)
+
+        hidden_markov_model = HMM(transition_matrix, observation_matrix)
+        predicted_seq = hidden_markov_model.predict_state_sequence(len(all_datasets))
+        predicted_label = (max(set(predicted_seq), key=predicted_seq.count) + 1)
+        predicted_labels.append(predicted_label)
+        bar.next()
+
+    time_elapsed = str(round(time() - t, 3)) + "s"
+    print("\nTime elapsed: %s" % (time_elapsed))
+
+
+accuracy = 0
+
+for i in range(len(predicted_labels)):
+    if predicted_labels[i] == testing_labels[i]:
+        accuracy += 1/len(predicted_labels)
+
+mrl = int(min([min(all_mrls[i]) for i in range(len(all_datasets))]))
+
+print("SUMMARY")
+summary = [
+    ["Algorithms Used", "Gaussian Process Classifier, Hidden Markov Model using viterbi algorithm"],
+    ["Accuracy", "{}%".format(str(round(accuracy*100, 2)))],
+    ["Data Used", "{}%".format(str(round((mrl/144)*100, 2)))],
+    ["Sensors", len(all_datasets)],
+    ["Training fraction", TRAINING_FRACTION],
+    ["Alpha", ALPHA]
+]
+print(tabulate(summary))
