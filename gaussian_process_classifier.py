@@ -63,3 +63,29 @@ def get_gpc(X, Y):
     kernel = 1.0 * RBF(1.0)
     gpc = GaussianProcessClassifier(kernel=kernel, random_state=0).fit(X, Y)
     return gpc
+
+def get_labels_prob_for_one_series(series, classifiers, mrls):
+    '''
+    Get labels, probability, data_points used for each sensor.
+    '''
+    previous_label = 1
+    max_data_points_used = 0
+    predicted_labels = list()
+    predicted_probs = list()
+
+    for ci in range(len(series)):
+        data_points_to_use = mrls[ci][previous_label-1]
+        max_data_points_used = max(max_data_points_used, data_points_to_use)
+
+        data_component = series[ci]
+        data_component = data_component[:data_points_to_use]
+        classifier = classifiers[ci][previous_label-1]
+
+        predicted_label =  classifier.predict([data_component])[0]
+        predicted_prob = classifier.predict_proba([data_component])[0]
+
+        predicted_labels.append(predicted_label)
+        predicted_probs.append(predicted_prob)
+        previous_label = predicted_label
+
+    return predicted_labels, predicted_probs, max_data_points_used
